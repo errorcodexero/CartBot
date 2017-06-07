@@ -111,9 +111,9 @@ void InitState::EnterState()
 #endif
     CartBot::GetInstance().DisableMotors();
     CartBot::GetDisplay().Print(
-	"    SAFETY CHECK    ",
-	"     Hands off!     ",
-	"        ...         "
+	" CHECKING CONTROLS  ",
+	"     please wait    ",
+	"                    "
     );
 }
 
@@ -179,8 +179,8 @@ void DisabledState::EnterState()
     CartBot::GetInstance().DisableMotors();
 
     CartBot::GetDisplay().Print(
-	"        READY       ",
-	" Press either button",
+	"       READY        ",
+	"push button to drive",
 	"                    "
     );
 }
@@ -305,19 +305,23 @@ void EnabledState::UpdateDisplay()
 {
     LiquidCrystal_I2C &lcd = CartBot::GetDisplay().lcd;
 
+#ifdef DEBUG_MOTORS
     lcd.setCursor(0,0);
     lcd.print(leftSpeed);
 
     lcd.setCursor(16,0);
     lcd.print(rightSpeed);
+#endif
 
     lcd.setCursor(10,0);
-    lcd.write((forward>FAST)?CHAR_UP:' ');
+    lcd.write((forward > FAST) ? CHAR_UP : ' ');
 
     lcd.setCursor(9,1);
-    lcd.write((turn<0)?CHAR_LEFT:' ');
-    lcd.write((forward>0)?CHAR_UP:(forward<0)?CHAR_DOWN:CHAR_BULLET);
-    lcd.write((turn>0)?CHAR_RIGHT:' ');
+    lcd.write((turn < 0) ? CHAR_LEFT : ' ');
+    lcd.write((forward > 0) ? CHAR_UP :
+    	      (forward < 0) ? CHAR_DOWN :
+	      CHAR_BULLET);
+    lcd.write((turn > 0) ? CHAR_RIGHT : ' ');
 
     CartBot::GetInstance().ShowBatteryStatus();
 }
@@ -347,9 +351,9 @@ void ControlFaultState::EnterState()
 #endif
     CartBot::GetInstance().DisableMotors();
     CartBot::GetDisplay().Print(
-	"    SAFETY CHECK    ",
-	"     Hands off!     ",
-	"Release the controls"
+	"      DISABLED      ",
+	"                    ",
+	"                    "
     );
 }
 
@@ -374,7 +378,13 @@ void ControlFaultState::UpdateState()
 
 void ControlFaultState::UpdateOutputs()
 {
-    ;
+    if (CartBot::GetInstance().IsEnabled()) {
+	CartBot::GetDisplay().Print(1, " release the button ");
+    } else if (! CartBot::GetInstance().IsJoystickCentered()) {
+	CartBot::GetDisplay().Print(1, "release the joystick");
+    } else { // "can't happen"
+	CartBot::GetDisplay().Print(1, " release the kraken ");
+    }
 }
 
 void ControlFaultState::UpdateDisplay()
