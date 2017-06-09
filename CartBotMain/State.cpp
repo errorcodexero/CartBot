@@ -12,6 +12,8 @@
 #define	POWER_ON_TIME	5000	// milliseconds
 #define	INIT_TIME	2000
 
+#define	DEBUG_MOTORS
+
 State::State()
 {
     ResetTimer();
