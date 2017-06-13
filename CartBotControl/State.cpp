@@ -68,6 +68,14 @@ void PowerOnState::EnterState()
 
 void PowerOnState::UpdateState()
 {
+    if (!digitalRead(TEST_PIN))
+    {
+#ifdef SERIAL_DEBUG
+	Serial.println("PowerOnState -> TestState");
+#endif
+	CartBot::GetInstance().ChangeState(&CartBot::testState);
+    }
+
     if (TimeInState() > POWER_ON_TIME)
     {
 #ifdef SERIAL_DEBUG
@@ -441,4 +449,195 @@ void BatteryFaultState::UpdateDisplay()
 }
 
 ////////////////////////////////////////
+//
+// Test:
+// - display analog inputs and PWM outputs
+// - when user presses test-mode button,
+//	cycle whether the display shows A/D counts,
+//	measured voltage (based on 5.00V ref.) or
+//	calculated voltage
+//
+////////////////////////////////////////
 
+TestState::TestState()
+{
+    ;
+}
+
+TestState::~TestState()
+{
+    ;
+}
+
+void TestState::EnterState()
+{
+#ifdef SERIAL_DEBUG
+    Serial.println("TestState");
+#endif
+    CartBot::GetInstance().DisableMotors();
+    CartBot::GetDisplay().Print(
+    	"Vbat xx.x Venbl xx.x",
+	"JoyX xx.x JoyY  xx.x",
+	"Left x.xx Right x.xx"
+    );
+    displayMode = 0;
+    buttonPressed = true;
+    debounce = 0;
+    leftSpeed = rightSpeed = 1500;
+}
+
+void TestState::UpdateState()
+{
+    if (debounce) {
+	--debounce;
+    }
+    if (!digitalRead(TEST_PIN)) {	// input low == pressed
+	if (!buttonPressed) {		// wasn't previously pressed
+	    if (debounce == 0) {	// if we're past the debounce time
+		if (++displayMode > 2)	// advance mode
+		    displayMode = 0;
+	    }
+	    buttonPressed = true;	// record button press
+	    debounce = DEBOUNCE_TIME;	// (re)start the debounce timer
+	}
+    } else {				// input high == released
+	if (buttonPressed) {		// was previously pressed
+	    buttonPressed = false;	// record button release
+	    debounce = DEBOUNCE_TIME;	// (re)start the debounce timer
+	}
+    }
+}
+
+void TestState::UpdateOutputs()
+{
+    int joyx = CartBot::GetInstance().GetJoyX();
+    int joyy = CartBot::GetInstance().GetJoyY();
+    if (joyx < 512 + DEADBAND) {
+	leftSpeed = (joyy < 512 - DEADBAND) ? 1000
+	     : (joyy > 512 + DEADBAND) ? 2000
+	     : 1500;
+    } else {
+	leftSpeed = 1500;
+    }
+    if (joyx > 512 - DEADBAND) {
+	rightSpeed = (joyy < 512 - DEADBAND) ? 1000
+	     : (joyy > 512 + DEADBAND) ? 2000
+	     : 1500;
+    } else {
+	rightSpeed = 1500;
+    }
+
+    CartBot::GetInstance().SetMotorSpeed( leftSpeed, rightSpeed );
+}
+
+void itoa4( char *buf, int n )
+{
+    int d = n % 10;
+    buf[3] = '0' + d;
+    n /= 10;
+    if (n) {
+	d = n % 10;
+	buf[2] = '0' + d;
+	n /= 10;
+	if (n) {
+	    d = n % 10;
+	    buf[1] = '0' + d;
+	    n /= 10;
+	    if (n) {
+		d = n % 10;
+		buf[0] = '0' + d;
+		n /= 10;
+		if (n) {
+		    // out of range
+		    buf[0] = buf[1] = buf[2] = buf[3] = '-';
+		}
+	    } else {
+		buf[0] = ' ';
+	    }
+	} else {
+	    buf[1] = buf[0] = ' ';
+	}
+    } else {
+	buf[2] = buf[1] = buf[0] = ' ';
+    }
+}
+
+void ftoa2x1( char *buf, float f )
+{
+    int n = (f * 10. + 0.5);
+    int d = n % 10;
+    buf[3] = '0' + d;
+    buf[2] = '.';
+    n /= 10;
+    d = n % 10;
+    buf[1] = '0' + d;
+    n /= 10;
+    if (n) {
+	d = n % 10;
+	buf[0] = '0' + d;
+	n /= 10;
+	if (n) {
+	    // out of range
+	    buf[0] = buf[1] = buf[2] = buf[3] = '-';
+	}
+    } else {
+	buf[0] = ' ';
+    }
+}
+
+void ftoa1x2( char *buf, float f )
+{
+    int n = (f * 100. + 0.5);
+    int d = n % 10;
+    buf[3] = '0' + d;
+    n /= 10;
+    d = n % 10;
+    buf[2] = '0' + d;
+    buf[1] = '.';
+    n /= 10;
+    d = n % 10;
+    buf[0] = '0' + d;
+    n /= 10;
+    if (n) {
+	// out of range
+	buf[0] = buf[1] = buf[2] = buf[3] = '-';
+    }
+}
+
+void TestState::UpdateDisplay()
+{
+    char line1[21];
+    char line2[21];
+    char line3[21];
+
+    strcpy(line1, "Vbat xx.x Venbl xx.x");
+    strcpy(line2, "JoyX xx.x JoyY  xx.x");
+    strcpy(line3, "Left x.xx Right x.xx");
+
+    switch (displayMode) {
+    case 0:	// display raw A/D counts
+	itoa4( line1 + 5, CartBot::GetInstance().GetVBat() );
+	itoa4( line1 + 16, CartBot::GetInstance().GetVEnbl() );
+	itoa4( line2 + 5, CartBot::GetInstance().GetJoyX() );
+	itoa4( line2 + 16, CartBot::GetInstance().GetJoyY() );
+	break;
+    case 1:	// display raw input voltage based on 5.00V ref
+	ftoa1x2( line1 + 5, CartBot::GetInstance().GetVBat() * 5.00 / 1024. );
+	ftoa1x2( line1 + 16, CartBot::GetInstance().GetVEnbl() * 5.00 / 1024.);
+	ftoa1x2( line2 + 5, CartBot::GetInstance().GetJoyX() * 5.00 / 1024. );
+	ftoa1x2( line2 + 16, CartBot::GetInstance().GetJoyY() * 5.00 / 1024.);
+	break;
+    case 2:	// display calculated input voltage based on divider
+	ftoa2x1( line1 + 5, CartBot::GetInstance().GetVBat() * 5.00 / 1024. * (15.1e3 / 5.1e3));
+	ftoa2x1( line1 + 16, CartBot::GetInstance().GetVEnbl() * 5.00 / 1024. * (15.1e3 / 5.1e3));
+	ftoa2x1( line2 + 5, CartBot::GetInstance().GetJoyX() * 100.0 / 1024.);
+	ftoa2x1( line2 + 16, CartBot::GetInstance().GetJoyY() * 100.0 / 1024.);
+	break;
+    }
+    ftoa1x2( line3 + 5, leftSpeed / 1000. );
+    ftoa1x2( line3 + 16, rightSpeed / 1000. );
+
+    CartBot::GetDisplay().Print( line1, line2, line3 );
+}
+
+////////////////////////////////////////

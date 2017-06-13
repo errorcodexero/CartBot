@@ -89,3 +89,19 @@ public:
     virtual void UpdateDisplay();
 };
 
+class TestState : public State {
+public:
+    TestState();
+    virtual ~TestState();
+    virtual void EnterState();
+    virtual void UpdateState();
+    virtual void UpdateOutputs();
+    virtual void UpdateDisplay();
+public:
+    int displayMode;
+    bool buttonPressed;
+    int debounce;
+    int leftSpeed;
+    int rightSpeed;
+};
+

@@ -48,6 +48,7 @@ public:
     static EnabledState      enabledState;
     static ControlFaultState controlFaultState;
     static BatteryFaultState batteryFaultState;
+    static TestState         testState;
 
 private:
     void ReadA2D();

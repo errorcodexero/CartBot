@@ -18,14 +18,21 @@
 #define	VBAT_LOW	774	// 11.2V
 #define	VBAT_MAX	1023	// 14.8V
 
-#define	DEADBAND	77	// half-width of joystick neutral zone
+#define	DEADBAND	85	// half-width of joystick neutral zone
 #define	FAST		300	// threshold for "fast forward" display
 
-// output pins
+// digital pins
 #define	LEFTMOTOR_PIN	3	// should use 9 for Servo output
 #define	RIGHTMOTOR_PIN	5	// should use 10 for Servo output
+#define	TEST_PIN	6
+#define	BLINKY		13
 
 // min/max servo pulse widths in microseconds
 #define	FORWARD_LIMIT	1800
 #define	REVERSE_LIMIT	1300
+
+// cycle times
+#define	LOOP_TIME	20	// main loop - milliseconds
+#define	BLINK_CYCLES	25	// multiples of LOOP_TIME
+#define	DEBOUNCE_TIME	5	// multiples of LOOP_TIME
 

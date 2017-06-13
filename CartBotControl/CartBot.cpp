@@ -15,6 +15,7 @@ static DisabledState     CartBot::disabledState;
 static EnabledState      CartBot::enabledState;
 static ControlFaultState CartBot::controlFaultState;
 static BatteryFaultState CartBot::batteryFaultState;
+static TestState         CartBot::testState;
 
 CartBot& CartBot::GetInstance()
 {
